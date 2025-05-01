@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Info } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
+import { Plus, Info, Settings } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { v4 as uuidv4 } from "uuid";
 
@@ -15,6 +17,23 @@ const Index = () => {
   const [cameras, setCameras] = useState<string[]>([]);
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [activeTab, setActiveTab] = useState<string>("live");
+  const [captureInterval, setCaptureInterval] = useState<number>(10);
+  const [batchSize, setBatchSize] = useState<number>(6);
+
+  // Initialize settings from frameManager
+  useEffect(() => {
+    const settings = frameManager.getSettings();
+    setCaptureInterval(settings.captureIntervalSeconds);
+    setBatchSize(settings.framesPerBatch);
+  }, []);
+
+  // Update frameManager settings when sliders change
+  useEffect(() => {
+    frameManager.updateSettings({
+      captureIntervalSeconds: captureInterval,
+      framesPerBatch: batchSize
+    });
+  }, [captureInterval, batchSize]);
 
   // Frame capture handling
   const handleFrameCapture = useCallback((frameData: string, cameraId: string) => {
@@ -68,7 +87,7 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30">
       <header className="container mx-auto py-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
+          <h1 className="text-2xl font-bold font-poppins bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
             Vision Whisper Analysis
           </h1>
           <Button variant="ghost" size="sm">
@@ -82,7 +101,7 @@ const Index = () => {
           {/* Left side: Cameras section */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold">Camera Feeds</h2>
+              <h2 className="text-lg font-semibold font-poppins">Camera Feeds</h2>
               <Button onClick={addCamera}>
                 <Plus size={16} className="mr-1" /> Add Camera
               </Button>
@@ -98,35 +117,79 @@ const Index = () => {
                 {cameras.length === 0 ? (
                   <div className="glass-morphism rounded-lg p-12 text-center space-y-4">
                     <div className="text-4xl mb-4">📹</div>
-                    <h3 className="text-xl font-semibold">No cameras added</h3>
+                    <h3 className="text-xl font-semibold font-poppins">No cameras added</h3>
                     <p className="text-muted-foreground">Click "Add Camera" to start monitoring</p>
                     <Button onClick={addCamera}>
                       <Plus size={16} className="mr-1" /> Add Camera
                     </Button>
                   </div>
                 ) : (
-                  <div className="camera-grid">
-                    {cameras.map(cameraId => (
-                      <Camera
-                        key={cameraId}
-                        id={cameraId}
-                        onFrameCapture={handleFrameCapture}
-                        onRemove={removeCamera}
-                      />
-                    ))}
-                  </div>
+                  <ScrollArea className="camera-content-container">
+                    <div className="camera-grid p-1">
+                      {cameras.map(cameraId => (
+                        <Camera
+                          key={cameraId}
+                          id={cameraId}
+                          onFrameCapture={handleFrameCapture}
+                          onRemove={removeCamera}
+                        />
+                      ))}
+                    </div>
+                  </ScrollArea>
                 )}
               </TabsContent>
               
               <TabsContent value="settings">
-                <div className="p-4 border rounded-lg bg-card">
-                  <h3 className="text-lg font-medium mb-4">Camera Settings</h3>
-                  <p className="text-muted-foreground mb-2">
-                    Frames are captured every 10 seconds and analyzed in batches of 6 frames.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Active cameras: {cameras.length}
-                  </p>
+                <div className="p-6 border rounded-lg bg-card space-y-6">
+                  <h3 className="text-lg font-medium mb-4 font-poppins flex items-center">
+                    <Settings size={18} className="mr-2" />
+                    Camera Settings
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <label className="text-sm font-medium">Frame Capture Interval</label>
+                        <span className="text-sm text-muted-foreground">{captureInterval} seconds</span>
+                      </div>
+                      <Slider 
+                        value={[captureInterval]} 
+                        min={1} 
+                        max={30} 
+                        step={1} 
+                        onValueChange={(value) => setCaptureInterval(value[0])}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        How often to capture frames from cameras
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <label className="text-sm font-medium">Analysis Batch Size</label>
+                        <span className="text-sm text-muted-foreground">{batchSize} frames</span>
+                      </div>
+                      <Slider 
+                        value={[batchSize]} 
+                        min={2} 
+                        max={12} 
+                        step={1} 
+                        onValueChange={(value) => setBatchSize(value[0])}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Number of frames to collect before analyzing
+                      </p>
+                    </div>
+
+                    <div className="pt-2">
+                      <p className="text-sm font-poppins">
+                        Analysis will occur approximately every {captureInterval * batchSize} seconds
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Active cameras: {cameras.length}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>

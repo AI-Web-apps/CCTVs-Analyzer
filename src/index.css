@@ -1,4 +1,6 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -50,6 +52,11 @@
     --foreground: 210 40% 98%;
     /* ... other dark mode variables */
   }
+  
+  body {
+    @apply bg-background text-foreground font-poppins;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
 }
 
 @layer base {
@@ -57,16 +64,12 @@
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
-
   .camera-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 1rem;
     width: 100%;
+    height: 100%;
   }
 
   .aspect-video {
@@ -77,9 +80,14 @@
     @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-lg;
   }
   
+  .camera-content-container {
+    @apply h-[calc(70vh-6rem)] overflow-hidden;
+  }
+  
   .analysis-bubble {
     @apply bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-2xl shadow-sm mb-3 animate-slide-in;
     position: relative;
+    font-family: 'Poppins', sans-serif;
   }
 
   .analysis-bubble::before {
@@ -93,5 +101,9 @@
     border-top: 10px solid transparent;
     border-bottom: 10px solid transparent;
     border-right: 10px solid #e6f0fd;
+  }
+  
+  .camera-feed-mirror {
+    transform: scaleX(-1);
   }
 }

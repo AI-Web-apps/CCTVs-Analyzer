@@ -2,6 +2,7 @@
 import React from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import ReactMarkdown from 'react-markdown';
 
 export interface Analysis {
   id: string;
@@ -24,7 +25,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analyses }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea className="h-[calc(100vh-10rem)] px-4">
+        <ScrollArea className="h-[calc(70vh-10rem)] px-4">
           {analyses.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground h-full">
               <div className="mb-2 text-3xl">🔍</div>
@@ -34,14 +35,16 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analyses }) => {
           ) : (
             <div className="space-y-4 py-4">
               {analyses.map((analysis) => (
-                <div key={analysis.id} className="analysis-bubble">
+                <div key={analysis.id} className="analysis-bubble font-poppins">
                   <div className="flex justify-between mb-2">
                     <span className="text-xs font-medium text-blue-600">Camera {analysis.cameraId}</span>
                     <span className="text-xs text-gray-500">
                       {analysis.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <p className="text-sm">{analysis.content}</p>
+                  <div className="text-sm prose prose-blue max-w-none">
+                    <ReactMarkdown>{analysis.content}</ReactMarkdown>
+                  </div>
                 </div>
               ))}
             </div>
