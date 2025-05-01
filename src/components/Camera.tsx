@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Refresh, FlipHorizontal } from "lucide-react";
+import { X, RefreshCw, FlipHorizontal } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 
 interface CameraProps {
@@ -209,7 +209,7 @@ const Camera: React.FC<CameraProps> = ({ id, onFrameCapture, onRemove }) => {
               className="h-6 w-6 p-0 text-white"
               onClick={refreshDevices}
             >
-              <Refresh size={14} />
+              <RefreshCw size={14} />
             </Button>
           </div>
         </div>
