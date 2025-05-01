@@ -9,13 +9,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, RefreshCw, FlipHorizontal } from "lucide-react";
+import { X, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 
 interface CameraProps {
   id: string;
+  name: string;
   onFrameCapture: (frameData: string, cameraId: string) => void;
   onRemove: (id: string) => void;
+  onRename: (id: string, newName: string) => void;
 }
 
 interface DeviceInfo {
@@ -23,14 +25,16 @@ interface DeviceInfo {
   label: string;
 }
 
-const Camera: React.FC<CameraProps> = ({ id, onFrameCapture, onRemove }) => {
+const Camera: React.FC<CameraProps> = ({ id, name, onFrameCapture, onRemove, onRename }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>("");
-  const [isMirrored, setIsMirrored] = useState<boolean>(true);
+  const [isEditingName, setIsEditingName] = useState<boolean>(false);
+  const [editedName, setEditedName] = useState<string>(name);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   // Get available video devices
   const getVideoDevices = async () => {
@@ -138,23 +142,47 @@ const Camera: React.FC<CameraProps> = ({ id, onFrameCapture, onRemove }) => {
     toast.success("Camera list refreshed");
   };
 
-  // Toggle mirror mode
-  const toggleMirror = () => {
-    setIsMirrored(prev => !prev);
+  // Handle camera rename
+  const handleNameClick = () => {
+    setIsEditingName(true);
+    setTimeout(() => {
+      if (nameRef.current) {
+        nameRef.current.focus();
+        nameRef.current.select();
+      }
+    }, 10);
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditedName(e.target.value);
+  };
+
+  const handleNameBlur = () => {
+    if (editedName.trim() === "") {
+      setEditedName(name);
+    } else if (editedName !== name) {
+      onRename(id, editedName);
+    }
+    setIsEditingName(false);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      if (editedName.trim() === "") {
+        setEditedName(name);
+      } else if (editedName !== name) {
+        onRename(id, editedName);
+      }
+      setIsEditingName(false);
+    } else if (e.key === "Escape") {
+      setEditedName(name);
+      setIsEditingName(false);
+    }
   };
 
   return (
-    <Card className="relative overflow-hidden shadow-lg">
-      <div className="absolute top-2 right-2 z-10 flex gap-1">
-        <Button 
-          variant="secondary" 
-          size="sm" 
-          className="rounded-full w-8 h-8 p-0"
-          onClick={toggleMirror}
-          title={isMirrored ? "Disable mirror" : "Enable mirror"}
-        >
-          <FlipHorizontal size={16} />
-        </Button>
+    <Card className="relative overflow-hidden shadow-lg border-0 bg-opacity-80 backdrop-blur-sm">
+      <div className="absolute top-2 right-2 z-10">
         <Button 
           variant="destructive" 
           size="sm" 
@@ -180,7 +208,7 @@ const Camera: React.FC<CameraProps> = ({ id, onFrameCapture, onRemove }) => {
         
         <video
           ref={videoRef}
-          className={`w-full h-full object-cover ${isMirrored ? 'camera-feed-mirror' : ''}`}
+          className="w-full h-full object-cover camera-feed-mirror"
           autoPlay
           playsInline
           muted
@@ -188,7 +216,26 @@ const Camera: React.FC<CameraProps> = ({ id, onFrameCapture, onRemove }) => {
         
         <div className="absolute bottom-2 left-2 right-2 flex justify-between bg-black/50 px-2 py-1 rounded">
           <div className="flex items-center gap-2 w-full">
-            <span className="text-xs text-white">Camera {id}</span>
+            {isEditingName ? (
+              <input
+                ref={nameRef}
+                type="text"
+                className="text-xs bg-transparent text-white border border-primary/40 rounded px-1 py-0.5 w-24"
+                value={editedName}
+                onChange={handleNameChange}
+                onBlur={handleNameBlur}
+                onKeyDown={handleNameKeyDown}
+                maxLength={20}
+              />
+            ) : (
+              <span 
+                className="text-xs text-white cursor-pointer hover:text-primary transition-colors"
+                onDoubleClick={handleNameClick}
+                title="Double-click to rename"
+              >
+                {name}
+              </span>
+            )}
             <div className="flex-1 min-w-0">
               <Select value={selectedDevice} onValueChange={handleDeviceChange}>
                 <SelectTrigger className="h-7 text-xs bg-transparent text-white border-none w-full">

@@ -5,6 +5,7 @@ import { toast } from "@/components/ui/sonner";
 interface AnalysisResult {
   id: string;
   cameraId: string;
+  cameraName: string;
   timestamp: Date;
   content: string;
 }
@@ -17,10 +18,15 @@ interface FrameData {
 const API_KEY = "AIzaSyCsw06QWBk44pfvzpxy21gpRm8cV-tPvD8";
 const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
-export async function analyzeFrames(cameraId: string, frames: FrameData[]): Promise<AnalysisResult> {
+export async function analyzeFrames(
+  cameraId: string, 
+  frames: FrameData[], 
+  cameraName: string = `Camera ${cameraId}`,
+  batchSize: number = 6
+): Promise<AnalysisResult> {
   try {
     // Extract base64 data from data URLs and include timestamps
-    const frameDataWithTimestamps = frames.map((frame, index) => {
+    const frameDataWithTimestamps = frames.map((frame) => {
       // Remove the "data:image/jpeg;base64," prefix
       const base64Data = frame.frameUrl.split(',')[1];
       const timestamp = frame.timestamp.toLocaleTimeString();
@@ -32,7 +38,7 @@ export async function analyzeFrames(cameraId: string, frames: FrameData[]): Prom
     });
     
     const prompt = `
-      Analyze these 6 video frames from a security camera (Camera ${cameraId}) taken 10 seconds apart.
+      Analyze these ${batchSize} video frames from a security camera (${cameraName}) taken ${frames.length > 1 ? 'at regular intervals' : ''}.
       Describe any notable activities, people, or changes you observe.
       Be concise but informative. Focus on unusual or suspicious activities if present.
       If nothing notable is happening, say so briefly.
@@ -43,7 +49,7 @@ export async function analyzeFrames(cameraId: string, frames: FrameData[]): Prom
       contents: [{
         parts: [
           { text: prompt },
-          ...frameDataWithTimestamps.map((frame, i) => ({
+          ...frameDataWithTimestamps.map((frame) => ({
             inline_data: {
               mime_type: "image/jpeg",
               data: frame.base64Data
@@ -79,6 +85,7 @@ export async function analyzeFrames(cameraId: string, frames: FrameData[]): Prom
     return {
       id: uuidv4(),
       cameraId,
+      cameraName,
       timestamp: new Date(),
       content: analysisText
     };
@@ -89,6 +96,7 @@ export async function analyzeFrames(cameraId: string, frames: FrameData[]): Prom
     return {
       id: uuidv4(),
       cameraId,
+      cameraName,
       timestamp: new Date(),
       content: "Analysis failed. Please check your connection and try again."
     };

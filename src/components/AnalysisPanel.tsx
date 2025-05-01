@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 export interface Analysis {
   id: string;
   cameraId: string;
+  cameraName?: string;
   timestamp: Date;
   content: string;
 }
@@ -17,10 +18,10 @@ interface AnalysisPanelProps {
 
 const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analyses }) => {
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center">
-          <span className="mr-2 inline-block w-2 h-2 rounded-full bg-green-500"></span>
+    <Card className="h-full border-0 shadow-md bg-white/90 backdrop-blur-sm">
+      <CardHeader className="pb-2 bg-gradient-to-r from-blue-50 to-blue-100/50 border-b">
+        <CardTitle className="text-lg flex items-center text-slate-800">
+          <span className="mr-2 inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
           Real-time Analysis
         </CardTitle>
       </CardHeader>
@@ -37,7 +38,9 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analyses }) => {
               {analyses.map((analysis) => (
                 <div key={analysis.id} className="analysis-bubble font-poppins">
                   <div className="flex justify-between mb-2">
-                    <span className="text-xs font-medium text-blue-600">Camera {analysis.cameraId}</span>
+                    <span className="text-xs font-medium text-blue-700">
+                      {analysis.cameraName || `Camera ${analysis.cameraId}`}
+                    </span>
                     <span className="text-xs text-gray-500">
                       {analysis.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
