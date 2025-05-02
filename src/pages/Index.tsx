@@ -10,12 +10,47 @@ import { v4 as uuidv4 } from "uuid";
 
 import Camera from "@/components/Camera";
 import AnalysisPanel, { Analysis } from "@/components/AnalysisPanel";
+import DigitalClock from "@/components/DigitalClock";
 import frameManager from "@/utils/frameManager";
 import { analyzeFrames } from "@/services/analysisService";
 
 interface CameraInfo {
   id: string;
   name: string;
+}
+
+// Error boundary component
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Camera component error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 text-center bg-red-50 rounded-lg border border-red-100">
+          <h3 className="text-red-800 mb-2">Something went wrong with this component.</h3>
+          <Button 
+            variant="outline" 
+            onClick={() => this.setState({ hasError: false })}
+          >
+            Try Again
+          </Button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 const Index = () => {
@@ -25,46 +60,63 @@ const Index = () => {
   const [captureInterval, setCaptureInterval] = useState<number>(10);
   const [batchSize, setBatchSize] = useState<number>(6);
   const [analysisInterval, setAnalysisInterval] = useState<number>(60);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
 
   // Initialize settings from frameManager
   useEffect(() => {
-    const settings = frameManager.getSettings();
-    setCaptureInterval(settings.captureIntervalSeconds);
-    setBatchSize(settings.framesPerBatch);
-    setAnalysisInterval(captureInterval * batchSize);
+    try {
+      const settings = frameManager.getSettings();
+      setCaptureInterval(settings.captureIntervalSeconds);
+      setBatchSize(settings.framesPerBatch);
+      setAnalysisInterval(captureInterval * batchSize);
+    } catch (error) {
+      console.error("Error initializing settings:", error);
+    }
   }, []);
 
   // Update frameManager settings when sliders change
   useEffect(() => {
-    frameManager.updateSettings({
-      captureIntervalSeconds: captureInterval,
-      framesPerBatch: batchSize
-    });
-    setAnalysisInterval(captureInterval * batchSize);
+    try {
+      frameManager.updateSettings({
+        captureIntervalSeconds: captureInterval,
+        framesPerBatch: batchSize
+      });
+      setAnalysisInterval(captureInterval * batchSize);
+    } catch (error) {
+      console.error("Error updating settings:", error);
+    }
   }, [captureInterval, batchSize]);
 
   // Frame capture handling
   const handleFrameCapture = useCallback((frameData: string, cameraId: string) => {
-    frameManager.addFrame(cameraId, frameData);
+    try {
+      frameManager.addFrame(cameraId, frameData);
+    } catch (error) {
+      console.error("Error capturing frame:", error);
+    }
   }, []);
 
   // Process frames when we have enough
   useEffect(() => {
     const processFrames = async () => {
-      const camerasWithBatches = frameManager.getAllCamerasWithBatchesReady();
-      
-      for (const cameraId of camerasWithBatches) {
-        const frames = frameManager.getBatch(cameraId);
-        if (frames) {
-          try {
-            const cameraInfo = cameras.find(cam => cam.id === cameraId);
-            const cameraName = cameraInfo ? cameraInfo.name : `Camera ${cameraId}`;
-            const analysis = await analyzeFrames(cameraId, frames, cameraName, batchSize);
-            setAnalyses(prev => [analysis, ...prev]);
-          } catch (error) {
-            console.error(`Error analyzing frames from camera ${cameraId}:`, error);
+      try {
+        const camerasWithBatches = frameManager.getAllCamerasWithBatchesReady();
+        
+        for (const cameraId of camerasWithBatches) {
+          const frames = frameManager.getBatch(cameraId);
+          if (frames) {
+            try {
+              const cameraInfo = cameras.find(cam => cam.id === cameraId);
+              const cameraName = cameraInfo ? cameraInfo.name : `Camera ${cameraId}`;
+              const analysis = await analyzeFrames(cameraId, frames, cameraName, batchSize);
+              setAnalyses(prev => [analysis, ...prev]);
+            } catch (error) {
+              console.error(`Error analyzing frames from camera ${cameraId}:`, error);
+            }
           }
         }
+      } catch (error) {
+        console.error("Error processing frames:", error);
       }
     };
 
@@ -72,36 +124,69 @@ const Index = () => {
     return () => clearInterval(interval);
   }, [cameras, batchSize]);
 
+  // Check camera permissions
+  const checkCameraPermissions = async (): Promise<boolean> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // Stop the stream immediately after permission check
+      stream.getTracks().forEach(track => track.stop());
+      setPermissionError(null);
+      return true;
+    } catch (err) {
+      console.error("Camera permission error:", err);
+      setPermissionError("Camera access denied. Please enable camera permissions in your browser settings.");
+      return false;
+    }
+  };
+
   // Add a new camera
-  const addCamera = useCallback(() => {
-    const canAddCamera = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
-    
-    if (!canAddCamera) {
-      toast.error("Cannot access camera. Please ensure camera permissions are enabled.");
+  const addCamera = useCallback(async () => {
+    // Check if MediaDevices API is available
+    if (!navigator.mediaDevices) {
+      toast.error("Camera API not available in your browser.");
       return;
     }
     
-    const newCameraId = uuidv4().slice(0, 5);
-    const newCameraName = `Camera ${cameras.length + 1}`;
-    setCameras(prev => [...prev, { id: newCameraId, name: newCameraName }]);
-    toast.success("New camera added");
+    try {
+      const hasPermission = await checkCameraPermissions();
+      
+      if (hasPermission) {
+        const newCameraId = uuidv4().slice(0, 5);
+        const newCameraName = `Camera ${cameras.length + 1}`;
+        setCameras(prev => [...prev, { id: newCameraId, name: newCameraName }]);
+        toast.success("New camera added");
+      } else {
+        toast.error("Cannot add camera without permission");
+      }
+    } catch (err) {
+      console.error("Error adding camera:", err);
+      toast.error("Failed to add camera. Please try again.");
+    }
   }, [cameras.length]);
 
   // Remove a camera
   const removeCamera = useCallback((cameraId: string) => {
-    setCameras(prev => prev.filter(cam => cam.id !== cameraId));
-    frameManager.removeCamera(cameraId);
-    toast.info("Camera removed");
+    try {
+      setCameras(prev => prev.filter(cam => cam.id !== cameraId));
+      frameManager.removeCamera(cameraId);
+      toast.info("Camera removed");
+    } catch (error) {
+      console.error("Error removing camera:", error);
+    }
   }, []);
 
   // Rename a camera
   const renameCamera = useCallback((cameraId: string, newName: string) => {
-    setCameras(prev => 
-      prev.map(cam => 
-        cam.id === cameraId ? { ...cam, name: newName } : cam
-      )
-    );
-    toast.success(`Camera renamed to ${newName}`);
+    try {
+      setCameras(prev => 
+        prev.map(cam => 
+          cam.id === cameraId ? { ...cam, name: newName } : cam
+        )
+      );
+      toast.success(`Camera renamed to ${newName}`);
+    } catch (error) {
+      console.error("Error renaming camera:", error);
+    }
   }, []);
 
   return (
@@ -111,9 +196,12 @@ const Index = () => {
           <h1 className="text-2xl font-bold font-poppins bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-blue-500">
             CCTV Analysis
           </h1>
-          <Button variant="ghost" size="sm">
-            <Info size={16} className="mr-1" /> Help
-          </Button>
+          <div className="flex items-center space-x-6">
+            <DigitalClock />
+            <Button variant="ghost" size="sm">
+              <Info size={16} className="mr-1" /> Help
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -127,6 +215,16 @@ const Index = () => {
                 <Plus size={16} className="mr-1" /> Add Camera
               </Button>
             </div>
+            
+            {permissionError && (
+              <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+                <div className="flex">
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">{permissionError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="w-full mb-4 bg-slate-100/70 backdrop-blur-sm border border-slate-200">
@@ -148,14 +246,15 @@ const Index = () => {
                   <ScrollArea className="camera-content-container">
                     <div className="camera-grid p-1">
                       {cameras.map(camera => (
-                        <Camera
-                          key={camera.id}
-                          id={camera.id}
-                          name={camera.name}
-                          onFrameCapture={handleFrameCapture}
-                          onRemove={removeCamera}
-                          onRename={renameCamera}
-                        />
+                        <ErrorBoundary key={camera.id}>
+                          <Camera
+                            id={camera.id}
+                            name={camera.name}
+                            onFrameCapture={handleFrameCapture}
+                            onRemove={removeCamera}
+                            onRename={renameCamera}
+                          />
+                        </ErrorBoundary>
                       ))}
                     </div>
                   </ScrollArea>

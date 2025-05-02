@@ -34,11 +34,15 @@ const Camera: React.FC<CameraProps> = ({ id, name, onFrameCapture, onRemove, onR
   const [selectedDevice, setSelectedDevice] = useState<string>("");
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [editedName, setEditedName] = useState<string>(name);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const nameRef = useRef<HTMLInputElement>(null);
-
+  const heartbeatRef = useRef<number | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  
   // Get available video devices
   const getVideoDevices = async () => {
     try {
+      await navigator.mediaDevices.getUserMedia({ video: true }); // Request permission first
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices
         .filter(device => device.kind === 'videoinput')
@@ -61,58 +65,109 @@ const Camera: React.FC<CameraProps> = ({ id, name, onFrameCapture, onRemove, onR
   // Setup devices enumeration when component mounts
   useEffect(() => {
     getVideoDevices();
-  }, []);
-
-  // Setup stream when selected device changes
-  useEffect(() => {
-    const setupCamera = async () => {
-      if (!selectedDevice) return;
-
-      try {
-        setIsLoading(true);
-        // Stop current stream if it exists
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-
-        const constraints = {
-          video: {
-            deviceId: { exact: selectedDevice },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            aspectRatio: 16/9
-          }
-        };
-        
-        const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-        setStream(mediaStream);
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-        }
-        setError(null);
-      } catch (err) {
-        console.error("Error accessing camera:", err);
-        setError("Failed to access camera");
-      } finally {
-        setIsLoading(false);
+    
+    return () => {
+      // Clean up on unmount
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
       }
     };
+  }, []);
 
-    setupCamera();
+  // Check if stream is still active
+  const setupHeartbeat = () => {
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+    }
+    
+    heartbeatRef.current = window.setInterval(() => {
+      if (!videoRef.current || videoRef.current.readyState !== 4) {
+        console.log(`Camera ${id}: Stream not active, attempting reconnect`);
+        reconnectStream();
+      }
+    }, 5000);
+  };
 
-    // Cleanup function to stop the stream when component unmounts
-    return () => {
+  const reconnectStream = () => {
+    // Prevent multiple reconnect attempts running simultaneously
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+
+    if (reconnectAttempts < 5) {
+      setIsLoading(true);
+      setReconnectAttempts(prev => prev + 1);
+      
+      reconnectTimeoutRef.current = window.setTimeout(() => {
+        setupCamera();
+      }, 2000);
+    } else {
+      setError("Failed to reconnect after multiple attempts");
+      // Reset attempts after a longer delay
+      reconnectTimeoutRef.current = window.setTimeout(() => {
+        setReconnectAttempts(0);
+        setupCamera();
+      }, 10000);
+    }
+  };
+
+  // Setup stream when selected device changes
+  const setupCamera = async () => {
+    if (!selectedDevice) return;
+
+    try {
+      setIsLoading(true);
+      // Stop current stream if it exists
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
-    };
-  }, [selectedDevice]);
+
+      const constraints = {
+        video: {
+          deviceId: { exact: selectedDevice },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          aspectRatio: 16/9
+        }
+      };
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      
+      setError(null);
+      setReconnectAttempts(0);
+      setupHeartbeat();
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      setError("Failed to access camera");
+      
+      // Try to reconnect after a delay
+      setTimeout(() => {
+        if (reconnectAttempts < 3) {
+          reconnectStream();
+        }
+      }, 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Handle device change
   const handleDeviceChange = (deviceId: string) => {
     setSelectedDevice(deviceId);
   };
+
+  // Setup stream when selected device changes
+  useEffect(() => {
+    setupCamera();
+  }, [selectedDevice]);
 
   // Setup interval for frame capture
   useEffect(() => {
@@ -120,15 +175,19 @@ const Camera: React.FC<CameraProps> = ({ id, name, onFrameCapture, onRemove, onR
     
     const captureInterval = setInterval(() => {
       if (videoRef.current && videoRef.current.readyState === 4) {
-        const canvas = document.createElement('canvas');
-        canvas.width = videoRef.current.videoWidth;
-        canvas.height = videoRef.current.videoHeight;
-        
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-          const frameData = canvas.toDataURL('image/jpeg', 0.8);
-          onFrameCapture(frameData, id);
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = videoRef.current.videoWidth;
+          canvas.height = videoRef.current.videoHeight;
+          
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+            const frameData = canvas.toDataURL('image/jpeg', 0.8);
+            onFrameCapture(frameData, id);
+          }
+        } catch (err) {
+          console.error("Error capturing frame:", err);
         }
       }
     }, 10000); // Capture a frame every 10 seconds
@@ -196,13 +255,26 @@ const Camera: React.FC<CameraProps> = ({ id, name, onFrameCapture, onRemove, onR
       <div className="relative aspect-video bg-black">
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center text-white">
-            <span className="animate-pulse">Connecting...</span>
+            <div className="flex flex-col items-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+              <span>{reconnectAttempts > 0 ? `Reconnecting (${reconnectAttempts})...` : 'Connecting...'}</span>
+            </div>
           </div>
         )}
         
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center text-red-500">
-            <span>{error}</span>
+        {error && !isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center flex-col">
+            <div className="text-red-500 mb-2">{error}</div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                setReconnectAttempts(0);
+                setupCamera();
+              }}
+            >
+              <RefreshCw size={14} className="mr-1" /> Retry Connection
+            </Button>
           </div>
         )}
         
