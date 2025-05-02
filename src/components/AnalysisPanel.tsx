@@ -41,45 +41,47 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analyses, cameras }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <TabsContent value="live" className="m-0">
-          <ScrollArea className="h-[calc(70vh-10rem)] px-4">
-            {analyses.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground h-full">
-                <div className="mb-2 text-3xl">🔍</div>
-                <p>No analysis data yet.</p>
-                <p className="text-xs mt-1">Analysis will appear here once frames are processed.</p>
-              </div>
-            ) : (
-              <div className="space-y-4 py-4">
-                {analyses.map((analysis) => (
-                  <div key={analysis.id} className="analysis-bubble font-poppins">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-xs font-medium text-blue-700">
-                        {analysis.cameraName || `Camera ${analysis.cameraId}`}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {analysis.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsContent value="live" className="m-0">
+            <ScrollArea className="h-[calc(70vh-10rem)] px-4">
+              {analyses.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground h-full">
+                  <div className="mb-2 text-3xl">🔍</div>
+                  <p>No analysis data yet.</p>
+                  <p className="text-xs mt-1">Analysis will appear here once frames are processed.</p>
+                </div>
+              ) : (
+                <div className="space-y-4 py-4">
+                  {analyses.map((analysis) => (
+                    <div key={analysis.id} className="analysis-bubble font-poppins">
+                      <div className="flex justify-between mb-2">
+                        <span className="text-xs font-medium text-blue-700">
+                          {analysis.cameraName || `Camera ${analysis.cameraId}`}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {analysis.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="text-sm prose prose-blue max-w-none">
+                        <ReactMarkdown>{analysis.content}</ReactMarkdown>
+                      </div>
                     </div>
-                    <div className="text-sm prose prose-blue max-w-none">
-                      <ReactMarkdown>{analysis.content}</ReactMarkdown>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+          
+          <TabsContent value="download" className="m-0 p-4">
+            <React.Suspense fallback={
+              <div className="flex items-center justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
               </div>
-            )}
-          </ScrollArea>
-        </TabsContent>
-        
-        <TabsContent value="download" className="m-0 p-4">
-          <React.Suspense fallback={
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          }>
-            <ReportDownloader analyses={analyses} cameras={cameras} />
-          </React.Suspense>
-        </TabsContent>
+            }>
+              <ReportDownloader analyses={analyses} cameras={cameras} />
+            </React.Suspense>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
