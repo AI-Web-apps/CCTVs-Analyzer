@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -29,7 +30,7 @@ class AppErrorBoundary extends React.Component<{children: ReactNode}, {hasError:
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-white flex flex-col justify-center items-center p-6">
+        <div className="min-h-screen bg-white flex flex-col justify-center items-center p-6 font-poppins">
           <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-6 text-center">
             <h1 className="text-2xl font-bold text-red-600 mb-4">Oops, something went wrong</h1>
             <p className="mb-4 text-slate-600">The application encountered an error. Please try refreshing the page.</p>
@@ -65,11 +66,13 @@ const App = () => {
 
   // Make sure all resources are loaded before rendering the app
   useEffect(() => {
+    // Ensure the font is loaded
+    document.documentElement.classList.add('font-poppins');
     setIsLoaded(true);
   }, []);
 
   if (!isLoaded) {
-    return <div className="flex h-screen w-full items-center justify-center">Loading...</div>;
+    return <div className="flex h-screen w-full items-center justify-center font-poppins">Loading...</div>;
   }
 
   return (

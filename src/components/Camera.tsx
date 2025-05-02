@@ -280,7 +280,7 @@ const Camera: React.FC<CameraProps> = ({ id, name, onFrameCapture, onRemove, onR
         
         <video
           ref={videoRef}
-          className="w-full h-full object-cover camera-feed-mirror"
+          className="w-full h-full object-contain camera-feed-mirror"
           autoPlay
           playsInline
           muted

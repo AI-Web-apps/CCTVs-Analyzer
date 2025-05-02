@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -190,7 +189,7 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10 font-poppins">
       <header className="container mx-auto py-4">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold font-poppins bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-blue-500">
@@ -328,7 +327,7 @@ const Index = () => {
           
           {/* Right side: Analysis section */}
           <div className="h-[calc(100vh-12rem)]">
-            <AnalysisPanel analyses={analyses} />
+            <AnalysisPanel analyses={analyses} cameras={cameras} />
           </div>
         </div>
       </main>
