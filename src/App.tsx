@@ -1,4 +1,4 @@
-
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -50,9 +50,6 @@ class AppErrorBoundary extends React.Component<{children: ReactNode}, {hasError:
     return this.props.children;
   }
 }
-
-// Fix the missing React import
-import React from "react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
